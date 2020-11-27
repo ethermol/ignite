@@ -1,0 +1,140 @@
+---
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+    Default: pm-
+  SecurityGroupDescription:
+    Description: Security Group Description
+    Type: String
+    Default: "Generic HTTP(S) Server provisioning sg"
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    # Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2'
+  KeyName:
+    Type: String
+    Default: pmostert
+
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: eu-central-1a
+      ImageId: !Ref LatestAmiId
+      InstanceType: t4g.medium
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      SecurityGroups:
+        - !Ref SSHSecurityGroup
+        - !Ref ServiceSecurityGroup
+      KeyName: !Ref KeyName
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 51
+      UserData:
+        "Fn::Base64": !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_arm64/amazon-ssm-agent.rpm
+          yum install -y https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/arm64/latest/amazon-cloudwatch-agent.rpm
+
+          curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.19.3+k3s2" INSTALL_K3S_EXEC="--write-kubeconfig-mode 644"  sh -s - --disable=traefik
+          #curl -o kubectl https://amazon-eks.s3-us-west-2.amazonaws.com/1.14.6/2019-08-22/bin/linux/amd64/kubectl && chmod +x ./kubectl
+          curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/arm64/kubectl && chmod +x ./kubectl
+          mv ./kubectl /usr/local/bin/
+          [ $(grep "KUBECONFIG=" /etc/profile) ] || echo -e '\nKUBECONFIG=/etc/rancher/k3s/k3s.yaml\n' >> /etc/profile
+
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}k3sHost
+
+  # an elastic IP for to obtain a stable external IP for our instance
+  EC2EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref EC2Instance
+  # our first EC2 security group (SSH failback)
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access for administrators
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 217.100.22.181/32
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}ssh-failback-sg
+
+  # our main EC2 security group
+  ServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Ref SecurityGroupDescription
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 217.100.22.181/32
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}k3s-service-sg
+
+  # This IAM Role is attached to all of the EC2 hosts. It is based on the
+  # default role published here:
+  # http://docs.aws.amazon.com/AmazonECS/latest/developerguide/instance_IAM_role.html
+  #
+  # You can add other IAM policy statements here to allow access from your EC2
+  # hosts to other AWS services. Please note that this role will be used by ALL
+  # containers running on the EC2 host.
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      RoleName: !Sub ${EnvironmentName}-EC2Role-${AWS::Region}
+      AssumeRolePolicyDocument: |
+        {
+           "Statement": [{
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              }
+           }]
+        }
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: EC2-service
+          PolicyDocument: |
+            {
+               "Statement": [{
+                 "Effect": "Allow",
+                 "Action": [
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:GetAuthorizationToken"
+                 ],
+                 "Resource": "*"
+               }]
+            }
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref EC2Role

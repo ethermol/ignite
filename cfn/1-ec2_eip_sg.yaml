@@ -1,0 +1,48 @@
+---
+Parameters:
+    SecurityGroupDescription:
+        Description: Security Group Description
+        Type: String
+        Default: "Generic HTTP Server provisioning sg"
+
+Resources:
+    ec2Instance:
+        Type: AWS::EC2::Instance
+        Properties:
+            AvailabilityZone: eu-central-1a
+            ImageId: ami-00a205cb8e06c3c4e
+            InstanceType: t2.micro
+            SecurityGroups:
+                - !Ref SSHSecurityGroup
+                - !Ref ServerSecurityGroup
+
+    # an elastic IP for our instance
+    ec2EIP:
+        Type: AWS::EC2::EIP
+        Properties:
+            InstanceId: !Ref ec2Instance
+
+    # our first EC2 security group
+    SSHSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Enable SSH access via port 22
+            SecurityGroupIngress:
+                - IpProtocol: tcp
+                  FromPort: 22
+                  ToPort: 22
+
+    # our second EC2 security group
+    ServerSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: !Ref SecurityGroupDescription
+            SecurityGroupIngress:
+                - IpProtocol: tcp
+                  FromPort: 80
+                  ToPort: 80
+                  CidrIp: 0.0.0.0/0
+                - IpProtocol: tcp
+                  FromPort: 22
+                  ToPort: 22
+                  CidrIp: 192.168.1.1/32
