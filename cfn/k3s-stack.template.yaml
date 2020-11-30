@@ -44,7 +44,7 @@ Resources:
           #curl -o kubectl https://amazon-eks.s3-us-west-2.amazonaws.com/1.14.6/2019-08-22/bin/linux/amd64/kubectl && chmod +x ./kubectl
           curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/arm64/kubectl && chmod +x ./kubectl
           mv ./kubectl /usr/local/bin/
-          [ $(grep "KUBECONFIG=" /etc/profile) ] || echo -e '\nKUBECONFIG=/etc/rancher/k3s/k3s.yaml\n' >> /etc/profile
+          [ $(grep "KUBECONFIG=" /etc/profile) ] || echo -e '\nexport KUBECONFIG=/etc/rancher/k3s/k3s.yaml\n' >> /etc/profile
 
       Tags:
         - Key: Name

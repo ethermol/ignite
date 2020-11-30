@@ -14,4 +14,4 @@ rm -rf /tmp/* && \
 rm -rf /var/cache/apk/*
 
 WORKDIR /doclib
-CMD [ "hugo", "server", "--minify", "--theme", "book" ]
+CMD [ "hugo", "server", "--minify", "--theme", "book", "--bind", "0.0.0.0", "--baseURL", "http://0.0.0.0:1313" ]
