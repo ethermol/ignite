@@ -14,4 +14,4 @@ rm -rf /tmp/* && \
 rm -rf /var/cache/apk/*
 
 WORKDIR /doclib
-CMD [ "hugo", "server", "--minify", "--theme", "book", "--bind", "0.0.0.0", "--baseURL", "http://cms.intelnet.nl", "--appendPort", "false" ]
+CMD [ "hugo", "server", "--minify", "--theme", "book", "--bind", "0.0.0.0", "--baseURL", "http://cms.intelnet.nl", "--appendPort=false" ]
