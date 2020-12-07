@@ -1,0 +1,20 @@
+---
+# k3s-stack.config.yml
+
+StackName: k3s-stack
+
+TemplateBody:
+  # You can either define the whole template body inline or you can include
+  # a reference to an external template file. TemplateBody has to be a string,
+  # Fn::Stringify takes care of that.
+  Fn::Stringify: !Include k3s-stack.template.yaml
+
+Parameters:
+  - {ParameterKey: KeyName, ParameterValue: pmostert}
+
+Capabilities:
+  CAPABILITY_NAMED_IAM
+
+Tags:
+  - {Key: Name, Value: k3s-stack}
+  - {Key: Environment, Value: production}

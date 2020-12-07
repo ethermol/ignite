@@ -1,0 +1,70 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  namespace: default
+  name: knoware
+  labels:
+    app: knoware
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: knoware
+  template:
+    metadata:
+      labels:
+        app: knoware
+    spec:
+      containers:
+        - name: knoware
+          image: pmostert/knoware
+          imagePullPolicy: Always
+          ports:
+            - name: web
+              containerPort: 1313
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: knoware
+  namespace: default
+spec:
+  ports:
+    - protocol: TCP
+      name: web
+      port: 1313
+  selector:
+    app: knoware
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: stripprefix
+  namespace: default
+
+spec:
+  stripPrefix:
+    prefixes:
+      - /knoware
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: knoware
+  namespace: default
+
+spec:
+  entryPoints:
+    - web
+  routes:
+    # - match: Host(`knoware.intelnet.nl`) && PathPrefix(`/knoware`)
+    - match: Host(`cms.intelnet.nl`)
+      kind: Rule
+      services:
+        - name: knoware
+          port: 1313
+          #          middlewares:
+          #            - name: stripprefix
+          #              namespace: default
