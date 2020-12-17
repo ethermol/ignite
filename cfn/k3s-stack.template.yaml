@@ -21,7 +21,6 @@ Resources:
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      AvailabilityZone: eu-central-1a
       ImageId: !Ref LatestAmiId
       InstanceType: t4g.medium
       IamInstanceProfile: !Ref EC2InstanceProfile
