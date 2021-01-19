@@ -116,6 +116,18 @@ volumes: []
 # - name: '{{ printf "%s-configs" .Release.Name }}'
 #   mountPath: "/config"
 #   type: configMap
+#
+# Added by: mos - 31-12-2020
+#
+additionalArguments:
+  - "--certificatesresolvers.letsencrypt.acme.email=pmostert@live.com"
+  - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
+  - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+  - "--certificatesResolvers.letsencrypt.acme.dnschallenge=true"
+  - "--certificatesResolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
+  - "--api.insecure=true"
+  - "--accesslog=true"
+  - "--log.level=INFO"
 
 # Additional volumeMounts to add to the Traefik container
 additionalVolumeMounts: []
@@ -174,12 +186,12 @@ globalArguments:
 # Additional arguments to be passed at Traefik's binary
 # All available options available on https://docs.traefik.io/reference/static-configuration/cli/
 ## Use curly braces to pass values: `helm install --set="additionalArguments={--providers.kubernetesingress.ingressclass=traefik-internal,--log.level=DEBUG}"`
-additionalArguments: []
+#additionalArguments: []
 #  - "--providers.kubernetesingress.ingressclass=traefik-internal"
 #  - "--log.level=DEBUG"
 
 # Environment variables to be passed to Traefik's binary
-env: []
+#env: []
 # - name: SOME_VAR
 #   value: some-var-value
 # - name: SOME_VAR_FROM_CONFIG_MAP
@@ -192,7 +204,13 @@ env: []
 #     secretKeyRef:
 #       name: secret-name
 #       key: secret-key
-
+#
+# Added by: mos - 02-01-2021
+env:
+  - name: TRANSIP_ACCOUNT_NAME
+    value: dnsadmin
+  - name: TRANSIP_PRIVATE_KEY_PATH
+    value: /letsencrypt/transip.key
 envFrom: []
 # - configMapRef:
 #     name: config-map-name

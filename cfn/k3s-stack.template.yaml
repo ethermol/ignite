@@ -7,14 +7,14 @@ Parameters:
   SecurityGroupDescription:
     Description: Security Group Description
     Type: String
-    Default: "Generic HTTP(S) Server provisioning sg"
+    Default: "Generic Pub Facing Server provisioning sg"
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     # Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2'
   KeyName:
     Type: String
-    Default: pmostert
+    Default: ec211t
 
 
 Resources:
@@ -25,7 +25,6 @@ Resources:
       InstanceType: t4g.medium
       IamInstanceProfile: !Ref EC2InstanceProfile
       SecurityGroups:
-        - !Ref SSHSecurityGroup
         - !Ref ServiceSecurityGroup
       KeyName: !Ref KeyName
       BlockDeviceMappings:
@@ -36,7 +35,6 @@ Resources:
         "Fn::Base64": !Sub |
           #!/bin/bash
           yum update -y
-          yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_arm64/amazon-ssm-agent.rpm
           yum install -y https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/arm64/latest/amazon-cloudwatch-agent.rpm
 
           curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.19.3+k3s2" INSTALL_K3S_EXEC="--write-kubeconfig-mode 644"  sh -s - --disable=traefik
@@ -50,23 +48,11 @@ Resources:
           Value: !Sub ${EnvironmentName}k3sHost
 
   # an elastic IP for to obtain a stable external IP for our instance
-  EC2EIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      InstanceId: !Ref EC2Instance
-  # our first EC2 security group (SSH failback)
-  SSHSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Enable SSH access for administrators
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 217.100.22.181/32
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName}ssh-failback-sg
+  # EC2EIP:
+  #   Type: AWS::EC2::EIP
+  #   DeletionPolicy: Retain
+  #   Properties:
+  #     InstanceId: !Ref EC2Instance
 
   # our main EC2 security group
   ServiceSecurityGroup:
@@ -78,14 +64,51 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+        - IpProtocol: "tcp"
+          Description: "HTTP In (v6)"
+          FromPort: 80
+          ToPort: 80
+          CidrIpv6: "::/0"
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
+        - IpProtocol: "tcp"
+          Description: "HTTPS In (v6)"
+          FromPort: 443
+          ToPort: 443
+          CidrIpv6: "::/0"
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
           CidrIp: 217.100.22.181/32
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 3.120.181.40/29
+        - IpProtocol: "tcp"
+          Description: "SSH In (v6)"
+          FromPort: 22
+          ToPort: 22
+          CidrIpv6: "::/0"
+        - IpProtocol: tcp
+          FromPort: 993
+          ToPort: 993
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: "tcp"
+          Description: "IMAPS In (v6)"
+          FromPort: 993
+          ToPort: 993
+          CidrIpv6: "::/0"
+        - IpProtocol: tcp
+          FromPort: 465
+          ToPort: 465
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: "tcp"
+          Description: "SMTPS In (v6)"
+          FromPort: 465
+          ToPort: 465
+          CidrIpv6: "::/0"
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}k3s-service-sg
